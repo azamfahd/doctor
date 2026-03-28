@@ -1,182 +1,228 @@
-
 import React, { useState, useEffect } from 'react';
-import Layout from './components/Layout.tsx';
-import Dashboard from './components/Dashboard.tsx';
-import Diagnosis from './components/Diagnosis.tsx';
-import Records from './components/Records.tsx';
-import Settings from './components/Settings.tsx';
-import AIResult from './components/AIResult.tsx';
-import ConsultSession from './components/ConsultSession.tsx';
-import { PatientCase, SystemSettings, StructuredDiagnosis } from './types.ts';
-import { INITIAL_SETTINGS, STORAGE_KEYS } from './constants.ts';
-import { analyzeMedicalCase } from './services/geminiService.ts';
-import { MessageSquare, Stethoscope } from 'lucide-react';
+import { PatientCase, SystemSettings } from './types';
+import { INITIAL_SETTINGS } from './constants';
+import { dbService } from './services/dbService';
+import { analyzeMedicalCase, generateSpeech } from './services/geminiService';
+import Layout from './components/Layout';
+import Dashboard from './components/Dashboard';
+import Diagnosis from './components/Diagnosis';
+import Records from './components/Records';
+import Settings from './components/Settings';
+import AIResult from './components/AIResult';
+import ConsultSession from './components/ConsultSession';
+
+import { Stethoscope } from 'lucide-react';
+import { motion } from 'motion/react';
+import MedicalDisclaimer from './components/MedicalDisclaimer';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [settings, setSettings] = useState<SystemSettings>(INITIAL_SETTINGS);
   const [records, setRecords] = useState<PatientCase[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [currentDiagnosis, setCurrentDiagnosis] = useState<{ diagnosis: StructuredDiagnosis, sources: any[] } | null>(null);
-  const [lastDiagnosedPatient, setLastDiagnosedPatient] = useState<PatientCase | null>(null);
-  const [activeSessionPatient, setActiveSessionPatient] = useState<PatientCase | null>(null);
+  const [currentRecord, setCurrentRecord] = useState<PatientCase | null>(null);
+  const [isDefaultKey, setIsDefaultKey] = useState(false);
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    const savedRecords = localStorage.getItem(STORAGE_KEYS.RECORDS);
-    if (savedSettings) setSettings(JSON.parse(savedSettings));
-    if (savedRecords) setRecords(JSON.parse(savedRecords));
+    const initApp = async () => {
+      // Set a timeout to ensure loading screen doesn't stay forever
+      const timeoutId = setTimeout(() => {
+        setIsLoading(false);
+      }, 3000);
+
+      try {
+        // Fetch settings and records with a timeout
+        const fetchWithTimeout = async <T,>(promise: Promise<T>, timeout: number): Promise<T | null> => {
+          return Promise.race([
+            promise,
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), timeout))
+          ]);
+        };
+
+        const [savedSettings, savedRecords] = await Promise.all([
+          fetchWithTimeout(dbService.getSettings(), 2500),
+          fetchWithTimeout(dbService.getRecords(), 2500)
+        ]);
+        
+        if (savedSettings) setSettings(savedSettings);
+        if (savedRecords) setRecords(savedRecords);
+        
+        // Check if using default key
+        if (!savedSettings?.apiKey && !process.env.GEMINI_API_KEY) {
+          setIsDefaultKey(true);
+        }
+      } catch (error) {
+        console.error('Initialization error:', error);
+      } finally {
+        clearTimeout(timeoutId);
+        setIsLoading(false);
+      }
+    };
+    initApp();
   }, []);
 
-  const saveToLocalStorage = (newRecords: PatientCase[]) => {
-    setRecords(newRecords);
-    localStorage.setItem(STORAGE_KEYS.RECORDS, JSON.stringify(newRecords));
-  };
-
-  const updateSettings = (newSettings: SystemSettings) => {
-    setSettings(newSettings);
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
-  };
-
-  const handleAnalysis = async (patientData: Partial<PatientCase>) => {
+  const handleAnalyze = async (patient: PatientCase) => {
     setIsAnalyzing(true);
     try {
-      // الخدمة تتعامل الآن مع المفتاح الافتراضي داخلياً
-      const result = await analyzeMedicalCase(patientData, settings);
+      const diagnosis = await analyzeMedicalCase(patient, settings);
+      const updatedRecord = { ...patient, diagnosis };
       
-      let status: 'عاجلة' | 'متابعة' | 'عادية' = 'عادية';
-      if (result.diagnosis.severity === 'حرجة' || result.diagnosis.severity === 'مرتفعة') {
-        status = 'عاجلة';
-      } else if (result.diagnosis.severity === 'متوسطة') {
-        status = 'متابعة';
-      }
-
-      const newRecord: PatientCase = {
-        id: Date.now().toString(),
-        name: patientData.name || 'مجهول',
-        age: patientData.age || '--',
-        gender: patientData.gender || 'ذكر',
-        symptoms: patientData.symptoms || '',
-        vitals: patientData.vitals || { bloodPressure: '', pulse: '', temperature: '', spo2: '' },
-        image: patientData.image,
-        diagnosis: result.diagnosis,
-        chatHistory: [],
-        date: new Date().toLocaleDateString('ar-EG'),
-        status: status
-      };
-      
-      saveToLocalStorage([newRecord, ...records]);
-      setCurrentDiagnosis(result);
-      setLastDiagnosedPatient(newRecord);
-    } catch (error: any) {
-      console.error("Analysis Error:", error);
-      alert("⚠️ حدث خطأ أثناء التحليل. يرجى التأكد من استقرار الإنترنت أو التحقق من صحة مفتاح الـ API.");
+      await dbService.saveRecord(updatedRecord);
+      setRecords(prev => [updatedRecord, ...prev]);
+      setCurrentRecord(updatedRecord);
+      setActiveTab('result');
+    } catch (error) {
+      console.error('Analysis error:', error);
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const renderContent = () => {
-    if (activeSessionPatient) {
-      return (
-        <ConsultSession 
-          patient={activeSessionPatient} 
-          settings={settings}
-          onClose={() => setActiveSessionPatient(null)}
-          onUpdateHistory={(history) => {
-             const updated = records.map(r => r.id === activeSessionPatient.id ? { ...r, chatHistory: history } : r);
-             saveToLocalStorage(updated);
-          }}
-        />
-      );
-    }
+  const handleUpdateRecord = async (updatedRecord: PatientCase) => {
+    await dbService.saveRecord(updatedRecord);
+    setRecords(prev => prev.map(r => r.id === updatedRecord.id ? updatedRecord : r));
+    setCurrentRecord(updatedRecord);
+  };
 
-    if (currentDiagnosis && lastDiagnosedPatient) {
-      return (
-        <AIResult 
-          diagnosis={currentDiagnosis.diagnosis} 
-          sources={currentDiagnosis.sources}
-          patientName={lastDiagnosedPatient.name}
-          patientGender={lastDiagnosedPatient.gender}
-          onClose={() => {
-            setCurrentDiagnosis(null);
-            setActiveTab('home');
-          }} 
-        />
-      );
-    }
-
-    switch (activeTab) {
-      case 'home':
-        return <Dashboard doctorName={settings.doctorName} records={records} onNewCase={() => setActiveTab('diagnosis')} onViewAll={() => setActiveTab('records')} activeModel={settings.model} isThinking={settings.deepThinking} />;
-      case 'diagnosis':
-        return <Diagnosis onAnalyze={handleAnalysis} isAnalyzing={isAnalyzing} />;
-      case 'consult':
-        return (
-          <div className="space-y-6">
-            <div className="bg-slate-900 p-10 rounded-[2.5rem] text-white flex items-center justify-between overflow-hidden relative">
-              <div className="relative z-10">
-                <h2 className="text-2xl font-black mb-2">العيادة الصوتية والمتابعة</h2>
-                <p className="text-slate-400 text-sm font-medium">اختر مريضاً لبدء جلسة استشارة ذكية.</p>
-              </div>
-              <MessageSquare className="w-32 h-32 absolute -bottom-10 -left-10 text-white/5" />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-               {records.map(r => (
-                 <div key={r.id} onClick={() => setActiveSessionPatient(r)} className="bg-white p-6 rounded-3xl border border-slate-100 hover:border-blue-500 cursor-pointer transition-all flex items-center justify-between group shadow-sm">
-                    <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                          <Stethoscope className="w-6 h-6" />
-                       </div>
-                       <div>
-                          <p className="font-black text-slate-800">{r.name}</p>
-                          <p className="text-[10px] text-slate-400 font-bold">{r.diagnosis?.conditionName || 'بانتظار التحليل'}</p>
-                       </div>
-                    </div>
-                 </div>
-               ))}
-            </div>
-          </div>
-        );
-      case 'records':
-        return <Records records={records} onStartSession={(p) => setActiveSessionPatient(p)} onDeleteRecord={(id) => {
-          if(confirm('هل أنت متأكد من حذف هذا السجل؟')) {
-            saveToLocalStorage(records.filter(r => r.id !== id));
-          }
-        }} />;
-      case 'settings':
-        return (
-          <Settings 
-            settings={settings} 
-            setSettings={updateSettings} 
-            records={records}
-            onImport={(imported) => saveToLocalStorage(imported)}
-            onSave={() => {
-              updateSettings(settings);
-              alert('✅ تم حفظ الإعدادات بنجاح.');
-            }} 
-            onClear={() => {
-              if(confirm('سيتم مسح كافة السجلات. هل أنت متأكد؟')) {
-                saveToLocalStorage([]);
-              }
-            }} 
-          />
-        );
-      default:
-        return null;
+  const handleDeleteRecord = async (id: string) => {
+    const success = await dbService.deleteRecord(id);
+    if (success) {
+      setRecords(prev => prev.filter(r => r.id !== id));
     }
   };
 
+  const handleSaveSettings = async (newSettings: SystemSettings) => {
+    const success = await dbService.saveSettings(newSettings);
+    if (success) {
+      setSettings(newSettings);
+      setIsDefaultKey(!newSettings.apiKey && !process.env.GEMINI_API_KEY);
+    }
+  };
+
+  const handleSpeak = async (text: string) => {
+    const audioData = await generateSpeech(text, settings);
+    if (audioData) {
+      const audio = new Audio(`data:audio/wav;base64,${audioData}`);
+      audio.play();
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-8 font-sans" dir="rtl">
+        <div className="relative">
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.1, 1],
+              rotate: [0, 5, -5, 0]
+            }}
+            transition={{ 
+              duration: 4,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="w-32 h-32 bg-blue-600 rounded-[2.5rem] flex items-center justify-center shadow-[0_20px_50px_rgba(37,99,235,0.3)] relative z-10"
+          >
+            <Stethoscope className="w-16 h-16 text-white" />
+          </motion.div>
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.5, 1],
+              opacity: [0.3, 0, 0.3]
+            }}
+            transition={{ 
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="absolute inset-0 bg-blue-400 rounded-[2.5rem] -z-0 blur-2xl"
+          />
+        </div>
+        <div className="mt-12 text-center space-y-4">
+          <h2 className="text-4xl font-black text-slate-900 tracking-tighter">جاري التحميل...</h2>
+          <p className="text-slate-400 font-bold text-lg tracking-tight">نجهز لك تجربة طبية ذكية وفاخرة</p>
+        </div>
+        <div className="mt-12 w-64 h-2 bg-slate-100 rounded-full overflow-hidden relative shadow-inner">
+          <motion.div 
+            animate={{ 
+              x: ["-100%", "100%"]
+            }}
+            transition={{ 
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-600 to-transparent w-full"
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <Layout 
-      activeTab={activeTab} 
-      setActiveTab={setActiveTab} 
-      settings={settings} 
-      onUpdateSettings={updateSettings}
-    >
-      {renderContent()}
-    </Layout>
+    <>
+      <MedicalDisclaimer />
+      <Layout 
+        activeTab={activeTab === 'result' || activeTab === 'consult' ? 'diagnosis' : activeTab} 
+        setActiveTab={setActiveTab} 
+        settings={settings}
+        isDefaultKey={isDefaultKey}
+      >
+        {activeTab === 'dashboard' && (
+          <Dashboard 
+            records={records} 
+            settings={settings} 
+            onNewCase={() => setActiveTab('diagnosis')} 
+            onViewAll={() => setActiveTab('records')}
+            onSelectRecord={(r) => { setCurrentRecord(r); setActiveTab('result'); }}
+          />
+        )}
+        {activeTab === 'diagnosis' && (
+          <Diagnosis 
+            settings={settings} 
+            onAnalyze={handleAnalyze} 
+            isAnalyzing={isAnalyzing} 
+          />
+        )}
+        {activeTab === 'records' && (
+          <Records 
+            records={records} 
+            onSelect={(r) => { setCurrentRecord(r); setActiveTab('result'); }}
+            onDelete={handleDeleteRecord}
+            onConsult={(r) => { setCurrentRecord(r); setActiveTab('consult'); }}
+          />
+        )}
+        {activeTab === 'settings' && (
+          <Settings 
+            settings={settings} 
+            onSave={handleSaveSettings}
+            onClearRecords={async () => {
+              // Clear all records from Supabase
+              const deletePromises = records.map(record => dbService.deleteRecord(record.id));
+              await Promise.all(deletePromises);
+              setRecords([]);
+            }}
+          />
+        )}
+        {activeTab === 'result' && currentRecord && (
+          <AIResult 
+            record={currentRecord} 
+            onBack={() => setActiveTab('dashboard')} 
+            onConsult={() => setActiveTab('consult')}
+            onSpeak={handleSpeak}
+          />
+        )}
+        {activeTab === 'consult' && currentRecord && (
+          <ConsultSession 
+            record={currentRecord} 
+            settings={settings} 
+            onBack={() => setActiveTab('result')}
+            onUpdateRecord={handleUpdateRecord}
+          />
+        )}
+      </Layout>
+    </>
   );
 };
 

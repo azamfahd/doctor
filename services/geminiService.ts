@@ -1,139 +1,82 @@
+import { GoogleGenAI, Modality, Type, Chat } from "@google/genai";
+import { PatientCase, SystemSettings } from "../types";
 
-import { GoogleGenAI, GenerateContentResponse, Type, Chat, Modality } from "@google/genai";
-import { SystemSettings, PatientCase, StructuredDiagnosis } from '../types.ts';
-
-const DEFAULT_API_KEY = "AIzaSyBvw8htMZG_o-ou3v6GQM5kgrGMVFopPdk";
-
-const cleanJsonResponse = (text: string): string => {
-  return text.replace(/```json/g, "").replace(/```/g, "").trim();
+const getAI = (apiKey?: string) => {
+  const key = apiKey || process.env.GEMINI_API_KEY || "AIzaSyD-DEFAULT_KEY";
+  return new GoogleGenAI({ apiKey: key });
 };
 
-const getAI = (settings?: SystemSettings) => {
-  // الأولوية لمفتاح المستخدم، ثم مفتاح البيئة، ثم المفتاح الافتراضي
-  let apiKey = settings?.apiKey || (window as any).process?.env?.API_KEY || DEFAULT_API_KEY;
+export const analyzeMedicalCase = async (patient: PatientCase, settings: SystemSettings) => {
+  const ai = getAI(settings.apiKey);
   
-  if (!apiKey) {
-    throw new Error("MISSING_API_KEY");
-  }
-  return new GoogleGenAI({ apiKey });
-};
-
-export const analyzeMedicalCase = async (
-  patientData: Partial<PatientCase>,
-  settings: SystemSettings
-): Promise<{ diagnosis: StructuredDiagnosis, sources: any[] }> => {
-  try {
-    const ai = getAI(settings);
+  const prompt = `
+    بصفتك طبيب خبير (شخصية: ${settings.personality})، قم بتحليل الحالة التالية:
+    المريض: ${patient.name}، العمر: ${patient.age}، الجنس: ${patient.gender}
+    الأعراض: ${patient.symptoms}
+    المؤشرات الحيوية: حرارة ${patient.vitals.temp}، ضغط ${patient.vitals.bp}، نبض ${patient.vitals.pulse}، أكسجين ${patient.vitals.oxygen}
     
-    const systemInstruction = `
-      أنت "الحكيم الذكي Pro" - استشاري طب رقمي متقدم.
-      مهمتك: تحليل الحالة السريرية بأسلوب ${settings.personality}.
-      يجب أن يتضمن الرد نصائح مفصلة في:
-      1. المسار العلاجي 2. التغذية العلاجية 3. التأهيل البدني 4. جودة الحياة.
-      يجب أن يكون الرد بتنسيق JSON حصرياً.
-    `;
+    المطلوب: تقديم تشخيص دقيق، خطة علاج، وتوصيات.
+  `;
 
-    const prompt = `
-      تحليل حالة مريض سريرية:
-      - الاسم: ${patientData.name}
-      - العمر: ${patientData.age}
-      - الجنس: ${patientData.gender}
-      - الأعراض المذكورة: ${patientData.symptoms}
-      - المؤشرات الحيوية: الضغط (${patientData.vitals?.bloodPressure}), النبض (${patientData.vitals?.pulse}), الحرارة (${patientData.vitals?.temperature}), الأكسجين (${patientData.vitals?.spo2})
-    `;
-
-    const parts: any[] = [{ text: prompt }];
-    if (patientData.image) {
-      parts.push({
-        inlineData: {
-          mimeType: 'image/jpeg',
-          data: patientData.image.split(',')[1]
-        }
-      });
-    }
-
-    const config: any = {
-      systemInstruction,
+  const response = await ai.models.generateContent({
+    model: settings.model,
+    contents: {
+      parts: [
+        { text: prompt },
+        ...(patient.image ? [{ inlineData: { data: patient.image.split(',')[1], mimeType: "image/jpeg" } }] : [])
+      ]
+    },
+    config: {
+      systemInstruction: "أنت طبيب خبير تقدم تشخيصات طبية دقيقة باللغة العربية. كن مهنياً ودقيقاً.",
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          conditionName: { type: Type.STRING },
-          summary: { type: Type.STRING },
-          severity: { type: Type.STRING, enum: ["منخفضة", "متوسطة", "مرتفعة", "حرجة"] },
-          confidenceScore: { type: Type.NUMBER },
-          differentialDiagnosis: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                condition: { type: Type.STRING },
-                probability: { type: Type.NUMBER },
-                reasoning: { type: Type.STRING }
-              }
-            }
-          },
+          title: { type: Type.STRING },
+          severity: { type: Type.STRING, enum: ["low", "medium", "high"] },
+          description: { type: Type.STRING },
+          recommendations: { type: Type.ARRAY, items: { type: Type.STRING } },
           treatmentPlan: { type: Type.ARRAY, items: { type: Type.STRING } },
-          dietaryAdvice: { type: Type.ARRAY, items: { type: Type.STRING } },
-          physicalTherapy: { type: Type.ARRAY, items: { type: Type.STRING } },
-          lifestyleChanges: { type: Type.ARRAY, items: { type: Type.STRING } },
-          suggestedTests: { type: Type.ARRAY, items: { type: Type.STRING } },
-          urgentWarnings: { type: Type.ARRAY, items: { type: Type.STRING } },
-          preventionTips: { type: Type.ARRAY, items: { type: Type.STRING } },
-          generalInfo: { type: Type.STRING }
+          followUp: { type: Type.STRING }
         },
-        required: ["conditionName", "summary", "severity", "confidenceScore", "treatmentPlan", "dietaryAdvice", "physicalTherapy", "lifestyleChanges"]
-      }
-    };
-
-    if (settings.googleSearch && (settings.model.includes('pro') || settings.model.includes('image-preview'))) {
-      config.tools = [{ googleSearch: {} }];
+        required: ["title", "severity", "description", "recommendations", "treatmentPlan", "followUp"]
+      },
+      tools: settings.googleSearch ? [{ googleSearch: {} }] : [],
+      thinkingConfig: settings.deepThinking ? { includeThoughts: true } : undefined
     }
+  });
 
-    if (settings.deepThinking && (settings.model.includes('gemini-3') || settings.model.includes('gemini-2.5'))) {
-      config.thinkingConfig = { thinkingBudget: settings.thinkingBudget };
-    }
-
-    const response = await ai.models.generateContent({
-      model: settings.model,
-      contents: { parts },
-      config
-    });
-
-    const cleanedText = cleanJsonResponse(response.text || '{}');
-    return { 
-      diagnosis: JSON.parse(cleanedText), 
-      sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks || [] 
-    };
-  } catch (e: any) {
-    console.error("Gemini Error:", e);
-    throw e;
-  }
+  return JSON.parse(response.text);
 };
 
 export const startFollowUpChat = (patient: PatientCase, settings: SystemSettings): Chat => {
-  const ai = getAI(settings);
+  const ai = getAI(settings.apiKey);
   return ai.chats.create({
     model: settings.model,
     config: {
-      systemInstruction: `أنت الطبيب المرافق لـ ${patient.name}. تشخيصه هو ${patient.diagnosis?.conditionName}. الشخصية المعتمدة: ${settings.personality}.`,
+      systemInstruction: `أنت طبيب خبير تتابع حالة مريض (شخصية: ${settings.personality}). 
+      التشخيص الحالي: ${patient.diagnosis?.title}. 
+      كن مساعداً وودوداً وأجب على استفسارات المريض بدقة.`
     }
   });
 };
 
-export const generateSpeech = async (text: string, settings?: SystemSettings): Promise<string> => {
-  try {
-    const ai = getAI(settings);
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
-      },
-    });
-    return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || "";
-  } catch (e) {
-    return "";
-  }
+export const generateSpeech = async (text: string, settings: SystemSettings) => {
+  if (!settings.voiceOutputEnabled) return null;
+  
+  const ai = getAI(settings.apiKey);
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash-preview-tts",
+    contents: [{ parts: [{ text }] }],
+    config: {
+      responseModalities: [Modality.AUDIO],
+      speechConfig: {
+        voiceConfig: {
+          prebuiltVoiceConfig: { voiceName: 'Kore' }
+        }
+      }
+    }
+  });
+
+  return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
 };

@@ -1,16 +1,25 @@
+declare global {
+  interface Window {
+    aistudio?: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+  }
+}
 
-export enum AIPersonality {
-  SIMPLE = 'مبسط للمريض',
-  TECHNICAL = 'تقني للمتخصصين',
-  EMPATHETIC = 'متعاطف وداعم'
+export enum Personality {
+  PROFESSIONAL = 'professional',
+  FRIENDLY = 'friendly',
+  ACADEMIC = 'academic',
+  EMPATHETIC = 'empathetic'
 }
 
 export enum ModelType {
-  FLASH = 'gemini-3-flash-preview',
-  PRO = 'gemini-3-pro-preview',
-  LITE = 'gemini-flash-lite-latest',
-  IMAGE_PRO = 'gemini-3-pro-image-preview',
-  AUDIO_NATIVE = 'gemini-2.5-flash-native-audio-preview-12-2025'
+  FLASH_2_5 = 'gemini-2.5-flash-preview',
+  PRO_2_5 = 'gemini-2.5-pro-preview',
+  FLASH_3_0 = 'gemini-3-flash-preview',
+  PRO_3_1 = 'gemini-3.1-pro-preview',
+  FLASH_3_1_LITE = 'gemini-3.1-flash-lite-preview'
 }
 
 export enum ThemeMode {
@@ -19,69 +28,50 @@ export enum ThemeMode {
   SYSTEM = 'system'
 }
 
-export interface VitalSigns {
-  bloodPressure: string;
-  pulse: string;
-  temperature: string;
-  spo2: string;
-}
-
-export interface ChatMessage {
-  role: 'user' | 'model';
-  text: string;
-  timestamp: string;
-}
-
-export interface DifferentialDiagnosis {
-  condition: string;
-  probability: number;
-  reasoning: string;
-}
-
-export interface StructuredDiagnosis {
-  summary: string;
-  conditionName: string;
-  severity: 'منخفضة' | 'متوسطة' | 'مرتفعة' | 'حرجة';
-  confidenceScore: number;
-  differentialDiagnosis: DifferentialDiagnosis[];
-  recommendations: string[];
-  suggestedTests: string[];
-  urgentWarnings: string[];
-  treatmentPlan: string[];
-  dietaryAdvice: string[];
-  physicalTherapy: string[];
-  lifestyleChanges: string[];
-  preventionTips: string[];
-  generalInfo: string;
-  labResultsAnalysis?: string;
-}
-
 export interface PatientCase {
   id: string;
   name: string;
   age: string;
-  gender: 'ذكر' | 'أنثى';
+  gender: string;
   symptoms: string;
-  vitals: VitalSigns;
+  vitals: {
+    temp: string;
+    bp: string;
+    pulse: string;
+    oxygen: string;
+  };
   image?: string;
-  diagnosis?: StructuredDiagnosis;
-  chatHistory?: ChatMessage[];
+  diagnosis?: {
+    title: string;
+    severity: 'low' | 'medium' | 'high';
+    description: string;
+    recommendations: string[];
+    treatmentPlan: string[];
+    followUp: string;
+  };
+  chatHistory: ChatMessage[];
   date: string;
-  status: 'عادية' | 'متابعة' | 'عاجلة';
+  status: 'normal' | 'follow-up' | 'urgent';
 }
 
 export interface SystemSettings {
   centerName: string;
   doctorName: string;
-  personality: AIPersonality;
+  personality: Personality;
   model: ModelType;
   deepThinking: boolean;
-  thinkingBudget: number; // قيمة رقمية لميزانية التفكير
-  googleSearch: boolean; // تفعيل البحث في جوجل
+  thinkingBudget: number;
+  googleSearch: boolean;
   theme: ThemeMode;
   autoSave: boolean;
   voiceEnabled: boolean;
   voiceOutputEnabled: boolean;
   profileImage?: string;
-  apiKey?: string;
+  apiKey: string;
+}
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  content: string;
+  timestamp: number;
 }

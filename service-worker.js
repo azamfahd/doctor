@@ -11,7 +11,6 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // استراتيجية Network First لضمان الحصول على أحدث ملفات وتجنب الـ 404 المخزن
   e.respondWith(
     fetch(e.request).catch(() => caches.match(e.request))
   );
