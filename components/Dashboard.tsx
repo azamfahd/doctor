@@ -1,175 +1,177 @@
+
 import React from 'react';
-import { PatientCase, SystemSettings } from '../types';
-import { Plus, Users, Activity, ArrowRight, UserPlus } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Plus, Clock, Database, ShieldCheck, Activity, Search, Zap } from 'lucide-react';
+import { PatientCase } from '../types';
 
 interface DashboardProps {
+  doctorName: string;
   records: PatientCase[];
-  settings: SystemSettings;
   onNewCase: () => void;
   onViewAll: () => void;
-  onSelectRecord: (record: PatientCase) => void;
+  activeModel: string;
+  isThinking: boolean;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ records, settings, onNewCase, onViewAll, onSelectRecord }) => {
-  const recentRecords = records.slice(0, 5);
-
-  const stats = [
-    { label: 'إجمالي السجلات', value: records.length, icon: <Users className="w-8 h-8" />, color: 'bg-blue-500' },
-    { label: 'حالات اليوم', value: records.filter(r => r.date === new Date().toLocaleDateString('ar-EG')).length, icon: <Activity className="w-8 h-8" />, color: 'bg-emerald-500' },
-    { label: 'دقة التحليل', value: '98.5%', icon: <Activity className="w-8 h-8" />, color: 'bg-indigo-500' }
-  ];
+const Dashboard: React.FC<DashboardProps> = ({ doctorName, records, onNewCase, onViewAll, activeModel, isThinking }) => {
+  const recentRecords = records.slice(0, 4);
 
   return (
-    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-      {/* Welcome Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 lg:gap-10">
-        <div className="space-y-1 lg:space-y-2">
-          <h1 className="text-2xl lg:text-6xl font-black text-slate-900 tracking-tight">مرحباً، {settings.doctorName}</h1>
-          <p className="text-sm lg:text-xl text-slate-500 font-medium flex items-center gap-2 lg:gap-3">
-            لديك <span className="text-blue-600 font-black text-base lg:text-2xl">{records.length}</span> سجل طبي في {settings.centerName}
-            <span className="w-1.5 h-1.5 lg:w-2 lg:h-2 bg-emerald-500 rounded-full animate-pulse" />
-          </p>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Welcome Hero - Premium Design */}
+      <div className="relative rounded-2xl lg:rounded-3xl overflow-hidden shadow-xl bg-[#0F172A] p-5 lg:p-8 text-white group">
+        <div className="absolute inset-0 opacity-20 transition-transform duration-1000 group-hover:scale-110">
+          <img src="https://picsum.photos/seed/hospital/1200/400?blur=2" alt="Medical Background" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
         </div>
-        <button 
-          onClick={onNewCase}
-          className="btn-premium w-full md:w-auto px-6 lg:px-10 py-4 lg:py-6 text-base lg:text-xl group shadow-[0_20px_50px_rgba(37,99,235,0.2)]"
-        >
-          <Plus className="w-5 h-5 lg:w-7 lg:h-7 group-hover:rotate-90 transition-transform duration-500" />
-          بدء تشخيص جديد
-        </button>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8">
-        {stats.map((stat, i) => (
-          <motion.div 
-            key={i}
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1, duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
-            className="card-premium p-5 lg:p-10 flex items-center gap-4 lg:gap-8 group border-none shadow-xl hover:shadow-2xl transition-all duration-500"
-          >
-            <div className={`${stat.color} p-4 lg:p-6 rounded-xl lg:rounded-[2rem] text-white shadow-2xl shadow-blue-100 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500`}>
-              {React.cloneElement(stat.icon as React.ReactElement<any>, { className: "w-5 h-5 lg:w-8 lg:h-8" })}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0F172A] via-[#0F172A]/80 to-transparent"></div>
+        
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5 lg:gap-8">
+          <div className="max-w-xl">
+            <div className="inline-flex items-center gap-2 px-2 py-0.5 bg-blue-500/10 rounded-full border border-blue-500/20 mb-3 lg:mb-4">
+              <div className="w-1 h-1 bg-blue-400 rounded-full animate-pulse"></div>
+              <span className="text-[7px] lg:text-[9px] font-black text-blue-400 uppercase tracking-[0.15em]">نظام الحكيم المطور v4.0</span>
             </div>
-            <div className="space-y-0.5 lg:space-y-1">
-              <p className="text-slate-400 font-black text-[8px] lg:text-xs uppercase tracking-[0.2em] mb-1">{stat.label}</p>
-              <p className="text-2xl lg:text-5xl font-black text-slate-900 tracking-tighter">{stat.value}</p>
+            <h2 className="text-xl lg:text-2xl font-black mb-3 lg:mb-4 leading-tight tracking-tight">مرحباً دكتور {doctorName.split(' ')[0]}</h2>
+            <p className="text-slate-400 text-[10px] lg:text-sm font-medium mb-5 lg:mb-8 leading-relaxed max-w-md">الذكاء الاصطناعي جاهز لتحليل الحالات المعقدة وتوفير الوقت والجهد في التشخيص السريري الدقيق.</p>
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <button 
+                onClick={onNewCase}
+                className="flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl lg:rounded-2xl font-black text-xs lg:text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95 group"
+              >
+                <Plus className="w-4 h-4 transition-transform group-hover:rotate-90" />
+                بدء كشف جديد
+              </button>
+              <button 
+                onClick={onViewAll}
+                className="flex items-center justify-center gap-2 bg-white/5 backdrop-blur-md text-white px-5 py-2.5 rounded-xl lg:rounded-2xl font-black text-xs lg:text-sm hover:bg-white/10 transition-all border border-white/10"
+              >
+                سجلات المرضى
+              </button>
             </div>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
-        {/* Recent Records */}
-        <div className="lg:col-span-2 space-y-6 lg:space-y-10">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl lg:text-3xl font-black text-slate-900 flex items-center gap-3 lg:gap-6">
-              <div className="w-2 h-6 lg:w-3 lg:h-10 bg-blue-600 rounded-full shadow-lg shadow-blue-100" />
-              أحدث السجلات الطبية
-            </h2>
-            <button 
-              onClick={onViewAll}
-              className="text-blue-600 font-black hover:text-blue-700 flex items-center gap-2 lg:gap-3 group transition-all text-sm lg:text-lg"
-            >
-              عرض الكل
-              <ArrowRight className="w-4 h-4 lg:w-6 lg:h-6 group-hover:translate-x-2 transition-transform rotate-180" />
-            </button>
           </div>
+          <div className="hidden lg:flex w-24 h-24 lg:w-32 lg:h-32 bg-white/5 backdrop-blur-xl rounded-2xl lg:rounded-3xl items-center justify-center border border-white/10 shadow-2xl relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <ShieldCheck className="w-12 h-12 lg:w-16 lg:h-16 text-blue-400 relative z-10 transition-transform group-hover:scale-110" />
+          </div>
+        </div>
+      </div>
 
-          <div className="space-y-3 lg:space-y-6">
+      {/* Bento Grid Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
+        <div className="bg-white p-5 lg:p-6 rounded-2xl lg:rounded-3xl border border-slate-100 flex flex-col justify-between shadow-sm hover:shadow-md transition-all group">
+            <div className="w-8 h-8 lg:w-10 lg:h-10 bg-blue-50 rounded-lg lg:rounded-xl flex items-center justify-center text-blue-600 mb-3 lg:mb-4 group-hover:scale-110 transition-transform">
+              <Database className="w-4 h-4 lg:w-5 lg:h-5" />
+            </div>
+            <div>
+              <span className="text-xl lg:text-3xl font-black text-slate-900 block mb-0.5">{records.length}</span>
+              <span className="text-[7px] lg:text-[9px] text-slate-400 font-black uppercase tracking-widest">إجمالي الحالات المسجلة</span>
+            </div>
+        </div>
+        
+        <div className="bg-white p-5 lg:p-6 rounded-2xl lg:rounded-3xl border border-slate-100 flex flex-col justify-between shadow-sm hover:shadow-md transition-all group">
+            <div className="w-8 h-8 lg:w-10 lg:h-10 bg-emerald-50 rounded-lg lg:rounded-xl flex items-center justify-center text-emerald-600 mb-3 lg:mb-4 group-hover:scale-110 transition-transform">
+              <Search className="w-4 h-4 lg:w-5 lg:h-5" />
+            </div>
+            <div>
+              <span className="text-xl lg:text-3xl font-black text-slate-900 block mb-0.5">99.4%</span>
+              <span className="text-[7px] lg:text-[9px] text-slate-400 font-black uppercase tracking-widest">دقة التحليل الخوارزمي</span>
+            </div>
+        </div>
+
+        <div className="lg:col-span-2 bg-[#0F172A] p-5 lg:p-6 rounded-2xl lg:rounded-3xl text-white flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-600/20 to-transparent opacity-50"></div>
+            <div className="relative z-10 flex justify-between items-start">
+              <div>
+                <p className="text-[7px] lg:text-[9px] font-black text-blue-400 uppercase tracking-[0.15em] mb-1 lg:mb-1.5">محرك المعالجة النشط</p>
+                <h3 className="text-lg lg:text-xl font-black mb-1 lg:mb-1.5">{activeModel.includes('pro') ? 'Gemini 1.5 Pro Elite' : 'Flash Analytics Engine'}</h3>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse"></div>
+                  <span className="text-[7px] lg:text-[9px] text-slate-400 font-black uppercase tracking-widest">جاهز للتحليل الفوري</span>
+                </div>
+              </div>
+              <Activity className="w-6 h-6 lg:w-8 lg:h-8 text-blue-400 animate-pulse-soft" />
+            </div>
+            <div className="relative z-10 mt-5 lg:mt-6 flex gap-1.5">
+              <span className="px-2 py-0.5 bg-white/5 rounded-md text-[7px] font-black uppercase border border-white/5">Deep Thinking</span>
+              <span className="px-2 py-0.5 bg-white/5 rounded-md text-[7px] font-black uppercase border border-white/5">Multi-Modal</span>
+            </div>
+        </div>
+      </div>
+
+      {/* Recent Activity & Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
+        <div className="lg:col-span-2 bg-white rounded-2xl lg:rounded-3xl border border-slate-100 overflow-hidden shadow-sm">
+          <div className="p-5 lg:p-6 border-b border-slate-50 flex items-center justify-between">
+            <h3 className="font-black text-slate-900 text-sm lg:text-base flex items-center gap-2 lg:gap-2.5">
+              <Clock className="w-4 h-4 lg:w-4.5 lg:h-4.5 text-blue-600" /> آخر السجلات السريرية
+            </h3>
+            <button onClick={onViewAll} className="text-[9px] lg:text-[10px] font-black text-blue-600 hover:underline">عرض كافة السجلات</button>
+          </div>
+          <div className="p-4 lg:p-5 space-y-2.5 lg:space-y-3">
             {recentRecords.length > 0 ? (
-              recentRecords.map((record, i) => (
-                <motion.div 
-                  key={record.id}
-                  initial={{ opacity: 0, x: -30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05, duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
-                  onClick={() => onSelectRecord(record)}
-                  className="bg-white p-4 lg:p-8 rounded-xl lg:rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:border-blue-200 hover:-translate-y-1 transition-all cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group"
-                >
-                  <div className="flex items-center gap-4 lg:gap-8">
-                    <div className="w-12 h-12 lg:w-20 lg:h-20 bg-slate-50 text-blue-600 rounded-xl lg:rounded-[2rem] flex items-center justify-center font-black text-lg lg:text-3xl shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-all duration-500">
-                      {record.name[0]}
+              recentRecords.map((record) => (
+                <div key={record.id} className="flex items-center justify-between p-3 lg:p-4 bg-slate-50/50 rounded-xl lg:rounded-2xl border border-slate-100 hover:border-blue-200 hover:bg-white transition-all group cursor-pointer">
+                  <div className="flex items-center gap-3 lg:gap-4">
+                    <div className={`w-9 h-9 lg:w-11 lg:h-11 rounded-lg lg:rounded-xl flex items-center justify-center shadow-sm transition-all group-hover:scale-110 ${record.status === 'عاجلة' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'}`}>
+                      <Activity className="w-5 h-5 lg:w-6 lg:h-6" />
                     </div>
-                    <div className="space-y-0.5 lg:space-y-1">
-                      <h3 className="font-black text-slate-900 text-base lg:text-2xl group-hover:text-blue-600 transition-colors tracking-tight">{record.name}</h3>
-                      <p className="text-xs lg:text-lg text-slate-400 font-bold flex items-center gap-2 lg:gap-3">
-                        {record.age} سنة 
-                        <span className="w-1 h-1 lg:w-1.5 lg:h-1.5 bg-slate-200 rounded-full" />
-                        {record.gender}
-                        <span className="hidden sm:inline w-1.5 h-1.5 bg-slate-200 rounded-full" />
-                        <span className="hidden sm:inline">{record.date}</span>
-                      </p>
+                    <div>
+                      <h4 className="font-black text-slate-900 text-xs lg:text-sm mb-0.5">{record.name}</h4>
+                      <div className="flex items-center gap-2 lg:gap-2.5">
+                        <span className="text-[8px] lg:text-[9px] text-slate-400 font-bold uppercase">{record.date}</span>
+                        <span className="w-0.5 h-0.5 bg-slate-300 rounded-full"></span>
+                        <span className="text-[8px] lg:text-[9px] text-blue-500 font-black uppercase tracking-widest">{record.diagnosis?.conditionName}</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between w-full sm:w-auto gap-4 lg:gap-10">
-                    <span className={`px-3 lg:px-6 py-1 lg:py-2 rounded-lg lg:rounded-2xl text-[8px] lg:text-xs font-black uppercase tracking-[0.2em] shadow-sm ${
-                      record.status === 'urgent' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 
-                      record.status === 'follow-up' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 
-                      'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                    }`}>
-                      {record.status === 'urgent' ? 'عاجل' : record.status === 'follow-up' ? 'متابعة' : 'عادي'}
+                  <div className="flex items-center gap-2 lg:gap-3">
+                    <span className={`text-[7px] lg:text-[8px] px-2.5 lg:px-3 py-1 rounded-full font-black uppercase tracking-widest ${record.status === 'عاجلة' ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20' : 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'}`}>
+                      {record.status}
                     </span>
-                    <div className="w-8 h-8 lg:w-14 lg:h-14 rounded-lg lg:rounded-2xl bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-all duration-500 shadow-inner">
-                      <ArrowRight className="w-4 h-4 lg:w-7 lg:h-7 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-2 transition-all rotate-180" />
-                    </div>
                   </div>
-                </motion.div>
+                </div>
               ))
             ) : (
-              <div className="bg-white p-8 lg:p-24 rounded-2xl lg:rounded-[4rem] border border-dashed border-slate-200 text-center space-y-4 lg:space-y-8 shadow-inner">
-                <div className="w-16 h-16 lg:w-32 lg:h-32 bg-slate-50 rounded-xl lg:rounded-[3rem] flex items-center justify-center mx-auto animate-float shadow-sm">
-                  <UserPlus className="w-8 h-8 lg:w-16 lg:h-16 text-slate-300" />
+              <div className="py-10 lg:py-16 text-center">
+                <div className="w-12 h-12 lg:w-16 lg:h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2.5 lg:mb-3">
+                  <Database className="w-6 h-6 lg:w-8 lg:h-8 text-slate-200" />
                 </div>
-                <div className="space-y-1 lg:space-y-3">
-                  <h3 className="text-xl lg:text-3xl font-black text-slate-900">لا توجد سجلات بعد</h3>
-                  <p className="text-sm lg:text-xl text-slate-500 font-medium">ابدأ بإضافة أول حالة طبية للتشخيص الذكي.</p>
-                </div>
+                <p className="text-slate-400 text-[10px] lg:text-xs font-bold uppercase tracking-widest">لا توجد سجلات حالية</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Quick Actions / Info */}
-        <div className="space-y-6 lg:space-y-10">
-          <h2 className="text-xl lg:text-3xl font-black text-slate-900 flex items-center gap-3 lg:gap-6">
-            <div className="w-2 h-6 lg:w-3 lg:h-10 bg-slate-900 rounded-full shadow-lg shadow-slate-100" />
-            إحصائيات ذكية
-          </h2>
-          <div className="bg-slate-900 p-6 lg:p-12 rounded-2xl lg:rounded-[4rem] text-white shadow-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 rounded-full -mr-32 -mt-32 blur-3xl group-hover:scale-150 transition-transform duration-1000" />
-            <div className="relative z-10 space-y-6 lg:space-y-10">
-              <div className="space-y-1 lg:space-y-4">
-                <p className="text-slate-400 font-black text-[8px] lg:text-xs uppercase tracking-[0.3em]">النموذج النشط</p>
-                <h3 className="text-xl lg:text-4xl font-black tracking-tighter text-blue-400">{settings.model.split('-').slice(0, 2).join(' ').toUpperCase()}</h3>
+        <div className="space-y-4 lg:space-y-5">
+          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl lg:rounded-3xl p-5 lg:p-6 text-white shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 lg:w-28 lg:h-28 bg-white/10 rounded-full -mr-10 -mt-10 lg:-mr-14 lg:-mt-14 blur-2xl lg:blur-3xl"></div>
+            <h4 className="text-base lg:text-lg font-black mb-2.5 lg:mb-3 relative z-10">تحديثات النظام</h4>
+            <p className="text-blue-100 text-[9px] lg:text-[10px] font-medium leading-relaxed mb-3 lg:mb-4 relative z-10">تم تحديث قاعدة البيانات الطبية لتشمل أحدث البروتوكولات العلاجية لعام 2026.</p>
+            <div className="space-y-2 relative z-10">
+              <div className="flex items-center gap-2 p-2 bg-white/10 rounded-lg border border-white/10">
+                <div className="w-1 h-1 bg-emerald-400 rounded-full"></div>
+                <span className="text-[8px] font-black uppercase">تحسين سرعة التحليل</span>
               </div>
-              <div className="h-px bg-white/10" />
-              <div className="space-y-3 lg:space-y-6">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400 font-black text-[10px] lg:text-sm uppercase tracking-widest">البحث الذكي</span>
-                  <span className={`px-2.5 lg:px-4 py-1 lg:py-1.5 rounded-md lg:rounded-xl text-[7px] lg:text-[10px] font-black tracking-widest uppercase shadow-sm ${settings.googleSearch ? 'bg-emerald-400/20 text-emerald-400 border border-emerald-400/30' : 'bg-rose-400/20 text-rose-400 border border-rose-400/30'}`}>
-                    {settings.googleSearch ? 'مفعل' : 'معطل'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400 font-black text-[10px] lg:text-sm uppercase tracking-widest">التفكير العميق</span>
-                  <span className={`px-2.5 lg:px-4 py-1 lg:py-1.5 rounded-md lg:rounded-xl text-[7px] lg:text-[10px] font-black tracking-widest uppercase shadow-sm ${settings.deepThinking ? 'bg-emerald-400/20 text-emerald-400 border border-emerald-400/30' : 'bg-rose-400/20 text-rose-400 border border-rose-400/30'}`}>
-                    {settings.deepThinking ? 'مفعل' : 'معطل'}
-                  </span>
-                </div>
+              <div className="flex items-center gap-2 p-2 bg-white/10 rounded-lg border border-white/10">
+                <div className="w-1 h-1 bg-emerald-400 rounded-full"></div>
+                <span className="text-[8px] font-black uppercase">دعم الأشعة المقطعية</span>
               </div>
             </div>
           </div>
 
-          <div className="card-premium p-6 lg:p-10 space-y-3 lg:space-y-6 border-l-8 border-l-blue-600 shadow-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-1000" />
-            <h3 className="font-black text-slate-900 text-lg lg:text-2xl tracking-tight relative z-10">نصيحة اليوم</h3>
-            <p className="text-slate-500 leading-relaxed text-sm lg:text-lg font-medium relative z-10">
-              استخدم ميزة "التفكير العميق" للحالات الطبية المعقدة التي تتطلب تحليلاً دقيقاً للأعراض المتداخلة للوصول لأفضل تشخيص.
-            </p>
+          <div className="bg-white rounded-2xl lg:rounded-3xl p-5 lg:p-6 border border-slate-100 shadow-sm">
+            <h4 className="text-slate-900 font-black mb-3 lg:mb-4 flex items-center gap-2 lg:gap-2.5">
+              <Zap className="w-4 h-4 lg:w-4.5 lg:h-4.5 text-blue-600" /> إجراءات سريعة
+            </h4>
+            <div className="grid grid-cols-1 gap-2 lg:gap-2.5">
+              <button onClick={onNewCase} className="w-full py-3 px-4 bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-600 rounded-xl lg:rounded-2xl font-black text-[9px] lg:text-[10px] transition-all text-right flex items-center justify-between group">
+                <span>إضافة حالة طارئة</span>
+                <Plus className="w-3 h-3 group-hover:rotate-90 transition-transform" />
+              </button>
+              <button onClick={onViewAll} className="w-full py-3 px-4 bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-600 rounded-xl lg:rounded-2xl font-black text-[9px] lg:text-[10px] transition-all text-right flex items-center justify-between group">
+                <span>تصدير التقارير الأسبوعية</span>
+                <Database className="w-3 h-3 group-hover:scale-110 transition-transform" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

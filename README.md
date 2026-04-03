@@ -1,17 +1,20 @@
-# الحكيم الذكي Pro - Smart Medical Sage
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-نظام طبي متقدم مدعوم بالذكاء الاصطناعي للتشخيص والمتابعة الطبية.
+# Run and deploy your AI Studio app
 
-## التشغيل المحلي
+This contains everything you need to run your app locally.
 
-1. تثبيت التبعيات:
+View your app in AI Studio: https://ai.studio/apps/1b253e27-363d-4593-a4fd-58d6042d32e3
+
+## Run Locally
+
+**Prerequisites:**  Node.js
+
+
+1. Install dependencies:
    `npm install`
-2. تشغيل المشروع:
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
    `npm run dev`
-
-## التقنيات المستخدمة
-- React 18
-- Tailwind CSS 4
-- Google Gemini API
-- Supabase (PostgreSQL)
-- Motion (Animations)

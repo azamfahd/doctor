@@ -1,293 +1,268 @@
-import React, { useState, useRef } from 'react';
-import { PatientCase, SystemSettings } from '../types';
-import { Camera, Send, Loader2, User, Calendar, Activity, Thermometer, Droplets, Heart, Wind, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  Sparkles, Activity, Thermometer, Droplets, HeartPulse, Trash, 
+  ImagePlus, FileSearch
+} from 'lucide-react';
+import { PatientCase, VitalSigns } from '../types';
 
 interface DiagnosisProps {
-  settings: SystemSettings;
-  onAnalyze: (patient: PatientCase) => void;
+  onAnalyze: (data: Partial<PatientCase>) => void;
   isAnalyzing: boolean;
 }
 
 const Diagnosis: React.FC<DiagnosisProps> = ({ onAnalyze, isAnalyzing }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    age: '',
-    gender: 'ذكر',
-    symptoms: '',
-    temp: '',
-    bp: '',
+  const [name, setName] = useState('');
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState<'ذكر' | 'أنثى'>('ذكر');
+  const [symptoms, setSymptoms] = useState('');
+  const [analysisStep, setAnalysisStep] = useState(0);
+  const [vitals, setVitals] = useState<VitalSigns>({
+    bloodPressure: '',
     pulse: '',
-    oxygen: ''
+    temperature: '',
+    spo2: ''
   });
-  const [image, setImage] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  const steps = [
+    "بدء المسح السريري...", 
+    "تحليل المؤشرات الحيوية...", 
+    "معالجة البيانات البصرية...", 
+    "توليد التقرير التشخيصي...",
+    "مراجعة البروتوكولات الطبية..."
+  ];
+
+  useEffect(() => {
+    let interval: any;
+    if (isAnalyzing) {
+      interval = setInterval(() => setAnalysisStep(prev => (prev + 1) % steps.length), 2500);
+    }
+    return () => clearInterval(interval);
+  }, [isAnalyzing]);
+
+  const handleSubmit = () => {
+    if (!name || !symptoms) {
+      alert("يرجى إكمال البيانات الأساسية (الاسم والأعراض).");
+      return;
+    }
+    onAnalyze({ name, age, gender, symptoms, vitals, images: images.length > 0 ? images : undefined });
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []) as File[];
+    if (files.length > 0) {
+      const newImages = await Promise.all(
+        files.map(file => {
+          return new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const img = new Image();
+              img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1024;
+                const MAX_HEIGHT = 1024;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                  if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                  }
+                } else {
+                  if (height > MAX_HEIGHT) {
+                    width *= MAX_HEIGHT / height;
+                    height = MAX_HEIGHT;
+                  }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+              };
+              img.src = event.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+          });
+        })
+      );
+      setImages(prev => [...prev, ...newImages]);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const patient: PatientCase = {
-      id: Date.now().toString(),
-      name: formData.name,
-      age: formData.age,
-      gender: formData.gender,
-      symptoms: formData.symptoms,
-      vitals: {
-        temp: formData.temp,
-        bp: formData.bp,
-        pulse: formData.pulse,
-        oxygen: formData.oxygen
-      },
-      image: image || undefined,
-      chatHistory: [],
-      date: new Date().toLocaleDateString('ar-EG'),
-      status: 'normal'
-    };
-    onAnalyze(patient);
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
-    <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-12 duration-1000 pb-24">
-      <div className="card-premium overflow-hidden p-0 border-none shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] bg-white/80 backdrop-blur-xl">
-        <div className="grid grid-cols-1 lg:grid-cols-12">
-          {/* Form Side */}
-          <div className="lg:col-span-7 p-5 lg:p-16 space-y-6 lg:space-y-12">
-            <div className="space-y-2 lg:space-y-4">
-              <h2 className="text-2xl lg:text-5xl font-black text-slate-900 tracking-tight">تشخيص حالة جديدة</h2>
-              <p className="text-slate-500 text-base lg:text-xl font-medium leading-relaxed">أدخل بيانات المريض بدقة للحصول على أفضل النتائج الطبية المدعومة بالذكاء الاصطناعي</p>
+    <div className="relative animate-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto w-full">
+      {isAnalyzing && (
+        <div className="fixed inset-0 z-[300] bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center">
+          <div className="relative w-24 h-24 mb-6">
+            <div className="absolute inset-0 border-4 border-blue-500/10 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-t-blue-500 rounded-full animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Activity className="w-8 h-8 text-blue-400 animate-pulse-soft" />
             </div>
+          </div>
+          <h2 className="text-2xl font-black text-white mb-3 tracking-tight">جاري التحليل السريري الذكي</h2>
+          <div className="max-w-[200px] w-full bg-white/5 h-1 rounded-full overflow-hidden mb-4">
+            <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${((analysisStep + 1) / steps.length) * 100}%` }}></div>
+          </div>
+          <p className="text-blue-400 font-black text-[10px] uppercase tracking-[0.2em]">{steps[analysisStep]}</p>
+        </div>
+      )}
 
-            <form onSubmit={handleSubmit} className="space-y-6 lg:space-y-10">
-              {/* Basic Info */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-8">
-                <div className="md:col-span-2 space-y-2 lg:space-y-4">
-                  <label className="text-[10px] lg:text-xs font-black text-slate-400 flex items-center gap-2 lg:gap-3 uppercase tracking-[0.2em]">
-                    <div className="w-6 h-6 lg:w-8 lg:h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                      <User className="w-3 h-3 lg:w-4 lg:h-4" />
-                    </div>
-                    اسم المريض الكامل
-                  </label>
-                  <input
-                    required
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="أدخل الاسم الرباعي للمريض"
-                    className="input-premium py-3.5 lg:py-5 text-base lg:text-lg"
-                  />
-                </div>
-                <div className="space-y-2 lg:space-y-4">
-                  <label className="text-[10px] lg:text-xs font-black text-slate-400 flex items-center gap-2 lg:gap-3 uppercase tracking-[0.2em]">
-                    <div className="w-6 h-6 lg:w-8 lg:h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                      <Calendar className="w-3 h-3 lg:w-4 lg:h-4" />
-                    </div>
-                    العمر
-                  </label>
-                  <input
-                    required
-                    type="number"
-                    value={formData.age}
-                    onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                    placeholder="00"
-                    className="input-premium py-3.5 lg:py-5 text-base lg:text-lg text-center"
-                  />
-                </div>
+      <div className="bg-white rounded-2xl lg:rounded-3xl shadow-xl border border-slate-100 overflow-hidden mb-6">
+        <div className="p-5 lg:p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+           <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+                <FileSearch className="w-5 h-5" />
               </div>
-
-              {/* Gender Selection */}
-              <div className="space-y-2 lg:space-y-4">
-                <label className="text-[10px] lg:text-xs font-black text-slate-400 flex items-center gap-2 lg:gap-3 uppercase tracking-[0.2em]">
-                  <div className="w-6 h-6 lg:w-8 lg:h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                    <Activity className="w-3 h-3 lg:w-4 lg:h-4" />
-                  </div>
-                  الجنس
-                </label>
-                <div className="grid grid-cols-2 gap-3 lg:gap-6">
-                  {['ذكر', 'أنثى'].map((g) => (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, gender: g })}
-                      className={`py-3.5 lg:py-5 rounded-2xl lg:rounded-3xl font-black text-base lg:text-lg transition-all border-2 ${
-                        formData.gender === g 
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-2xl shadow-blue-200 scale-[1.02]' 
-                        : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100'
-                      }`}
-                    >
-                      {g}
-                    </button>
-                  ))}
-                </div>
+              <div>
+                 <h2 className="text-lg lg:text-xl font-black text-slate-900 tracking-tight">وحدة التشخيص المتطورة</h2>
+                 <p className="text-[7px] text-slate-400 font-black uppercase tracking-[0.3em] mt-0.5">Diagnostic Intelligence Engine v4.0</p>
               </div>
+           </div>
+           <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded-md border border-emerald-100">
+              <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse"></div>
+              <span className="text-[7px] font-black text-emerald-600 uppercase tracking-widest">النظام نشط</span>
+           </div>
+        </div>
 
-              {/* Symptoms */}
-              <div className="space-y-2 lg:space-y-4">
-                <label className="text-[10px] lg:text-xs font-black text-slate-400 flex items-center gap-2 lg:gap-3 uppercase tracking-[0.2em]">
-                  <div className="w-6 h-6 lg:w-8 lg:h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                    <Activity className="w-3 h-3 lg:w-4 lg:h-4" />
-                  </div>
-                  الأعراض والشكوى الرئيسية
-                </label>
-                <textarea
-                  required
-                  rows={5}
-                  value={formData.symptoms}
-                  onChange={(e) => setFormData({ ...formData, symptoms: e.target.value })}
-                  placeholder="اشرح الأعراض التي يعاني منها المريض بالتفصيل، متى بدأت؟ وما هي شدتها؟"
-                  className="input-premium min-h-[120px] lg:min-h-[180px] resize-none py-4 lg:py-6 text-base lg:text-lg leading-relaxed"
-                />
+        <div className="p-5 lg:p-6 space-y-6">
+          {/* Main Info */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[8px] font-black text-slate-400 pr-2 uppercase tracking-widest">اسم المريض الكامل</label>
+              <input 
+                value={name} 
+                onChange={e => setName(e.target.value)} 
+                className="w-full bg-slate-50 border-2 border-transparent focus:border-blue-100 focus:bg-white rounded-xl px-3.5 py-2.5 outline-none font-black text-xs transition-all text-slate-800 placeholder:text-slate-300" 
+                placeholder="أدخل الاسم هنا..." 
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[8px] font-black text-slate-400 pr-2 uppercase tracking-widest">العمر (سنوات)</label>
+              <input 
+                type="number" 
+                value={age} 
+                onChange={e => setAge(e.target.value)} 
+                className="w-full bg-slate-50 border-2 border-transparent focus:border-blue-100 focus:bg-white rounded-xl px-3.5 py-2.5 outline-none font-black text-xs transition-all text-slate-800 placeholder:text-slate-300" 
+                placeholder="00" 
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[8px] font-black text-slate-400 pr-2 uppercase tracking-widest">الجنس السريري</label>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setGender('ذكر')} 
+                  className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all border-2 ${gender === 'ذكر' ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-50 border-transparent text-slate-400 hover:border-slate-200'}`}
+                >
+                  ذكر
+                </button>
+                <button 
+                  onClick={() => setGender('أنثى')} 
+                  className={`flex-1 py-2.5 rounded-xl font-black text-[10px] transition-all border-2 ${gender === 'أنثى' ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/20' : 'bg-slate-50 border-transparent text-slate-400 hover:border-slate-200'}`}
+                >
+                  أنثى
+                </button>
               </div>
-
-              {/* Vitals */}
-              <div className="space-y-3 lg:space-y-6">
-                <label className="text-[10px] lg:text-xs font-black text-slate-400 flex items-center gap-2 lg:gap-3 uppercase tracking-[0.2em]">
-                  <div className="w-6 h-6 lg:w-8 lg:h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-                    <Activity className="w-3 h-3 lg:w-4 lg:h-4" />
-                  </div>
-                  العلامات الحيوية (اختياري)
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-6">
-                  {[
-                    { id: 'temp', label: 'الحرارة', icon: <Thermometer className="w-3 h-3 lg:w-4 lg:h-4" />, placeholder: '37' },
-                    { id: 'bp', label: 'الضغط', icon: <Droplets className="w-3 h-3 lg:w-4 lg:h-4" />, placeholder: '120/80' },
-                    { id: 'pulse', label: 'النبض', icon: <Heart className="w-3 h-3 lg:w-4 lg:h-4" />, placeholder: '75' },
-                    { id: 'oxygen', label: 'الأكسجين', icon: <Wind className="w-3 h-3 lg:w-4 lg:h-4" />, placeholder: '98%' }
-                  ].map((vital) => (
-                    <div key={vital.id} className="space-y-1.5 lg:space-y-3">
-                      <div className="flex items-center gap-2 px-1 lg:px-2">
-                        <span className="text-blue-600">{vital.icon}</span>
-                        <span className="text-[8px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest">{vital.label}</span>
-                      </div>
-                      <input
-                        type="text"
-                        value={formData[vital.id as keyof typeof formData] as string}
-                        onChange={(e) => setFormData({ ...formData, [vital.id]: e.target.value })}
-                        placeholder={vital.placeholder}
-                        className="input-premium py-2.5 lg:py-4 text-sm lg:text-base text-center font-black"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isAnalyzing}
-                className="btn-premium w-full py-5 lg:py-8 text-lg lg:text-2xl group shadow-[0_25px_60px_rgba(37,99,235,0.3)]"
-              >
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 className="w-5 h-5 lg:w-8 lg:h-8 animate-spin" />
-                    جاري تحليل الحالة...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-5 h-5 lg:w-8 lg:h-8 rotate-180 group-hover:-translate-x-3 transition-transform duration-500" />
-                    إرسال للتحليل الذكي
-                  </>
-                )}
-              </button>
-            </form>
+            </div>
           </div>
 
-          {/* Image Side */}
-          <div className="lg:col-span-5 bg-slate-50/80 p-5 lg:p-16 flex flex-col items-center justify-center space-y-6 lg:space-y-12 border-r border-slate-100 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/5 rounded-full -mr-48 -mt-48 blur-3xl" />
-            
-            <div className="text-center space-y-2 lg:space-y-4 relative z-10">
-              <h3 className="text-xl lg:text-3xl font-black text-slate-900 tracking-tight">المرفقات الطبية</h3>
-              <p className="text-slate-500 text-sm lg:text-lg font-medium leading-relaxed">يمكنك رفع صور الأشعة، التحاليل المخبرية، أو التقارير الطبية للتحليل</p>
-            </div>
+          {/* Symptoms Area */}
+          <div className="space-y-1.5">
+            <label className="text-[8px] font-black text-slate-400 pr-2 uppercase tracking-widest">وصف الأعراض والتاريخ المرضي</label>
+            <textarea 
+              value={symptoms} 
+              onChange={e => setSymptoms(e.target.value)}
+              className="w-full bg-slate-50 border-2 border-transparent focus:border-blue-100 focus:bg-white rounded-xl p-4 h-28 outline-none font-bold text-xs text-slate-700 resize-none leading-relaxed transition-all placeholder:text-slate-300" 
+              placeholder="يرجى كتابة الأعراض، مدتها، وأي ملاحظات سريرية أخرى بالتفصيل..."
+            />
+          </div>
 
+          {/* Vitals Grid */}
+          <div className="space-y-3">
+            <h4 className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] text-center">المؤشرات الحيوية الحالية</h4>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+              {[
+                { label: 'الحرارة', icon: Thermometer, key: 'temperature', unit: '°C', color: 'text-orange-500', bg: 'bg-orange-50' },
+                { label: 'الضغط', icon: HeartPulse, key: 'bloodPressure', unit: 'mmHg', color: 'text-rose-500', bg: 'bg-rose-50' },
+                { label: 'النبض', icon: Activity, key: 'pulse', unit: 'BPM', color: 'text-cyan-500', bg: 'bg-cyan-50' },
+                { label: 'الأكسجين', icon: Droplets, key: 'spo2', unit: '%', color: 'text-blue-500', bg: 'bg-blue-50' }
+              ].map((v) => {
+                const Icon = v.icon;
+                return (
+                <div key={v.key} className={`${v.bg} p-3 rounded-xl border border-white shadow-sm group hover:scale-105 transition-transform`}>
+                   <div className={`flex items-center gap-1 ${v.color} mb-1.5`}>
+                      <Icon className="w-3.5 h-3.5" />
+                      <span className="text-[7px] font-black uppercase tracking-widest">{v.label}</span>
+                   </div>
+                   <div className="flex items-end gap-1">
+                     <input 
+                       value={(vitals as any)[v.key]} 
+                       onChange={e => setVitals({...vitals, [v.key]: e.target.value})}
+                       className="bg-transparent border-none outline-none font-black text-slate-900 text-lg w-full placeholder:text-slate-300" 
+                       placeholder="--" 
+                     />
+                     <span className="text-[7px] font-black text-slate-400 mb-1">{v.unit}</span>
+                   </div>
+                </div>
+              )})}
+            </div>
+          </div>
+
+          {/* Image Uploader */}
+          <div className="space-y-1.5">
+            <label className="text-[8px] font-black text-slate-400 pr-2 uppercase tracking-widest">الصور الطبية والتقارير المرفقة</label>
             <div 
+              className="border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center bg-slate-50/30 hover:bg-blue-50/50 hover:border-blue-200 transition-all cursor-pointer group" 
               onClick={() => fileInputRef.current?.click()}
-              className={`w-full aspect-square max-w-[240px] lg:max-w-sm rounded-3xl lg:rounded-[4rem] border-4 border-dashed transition-all duration-700 flex flex-col items-center justify-center p-6 lg:p-8 cursor-pointer relative overflow-hidden group shadow-2xl ${image ? 'border-blue-500 bg-white scale-[1.02]' : 'border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/50 hover:scale-[1.02]'}`}
             >
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleImageUpload} 
-                className="hidden" 
-                accept="image/*"
-              />
-              
-              {image ? (
-                <>
-                  <img src={image} alt="Uploaded" className="w-full h-full object-cover rounded-2xl lg:rounded-[3rem]" />
-                  <div className="absolute inset-0 bg-slate-900/70 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center backdrop-blur-md">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                <ImagePlus className="w-5 h-5 text-blue-400" />
+              </div>
+              <p className="text-[10px] font-black text-slate-600 mb-0.5">أرفق صور الأشعة أو التقارير</p>
+              <p className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">JPG, PNG حتى 10 ميجابايت</p>
+              <input type="file" ref={fileInputRef} hidden accept="image/*" multiple onChange={handleImageChange} />
+            </div>
+            
+            {images.length > 0 && (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mt-4">
+                {images.map((img, idx) => (
+                  <div key={idx} className="relative group/img aspect-square rounded-lg overflow-hidden border-2 border-slate-200 shadow-sm">
+                    <img src={img} className="w-full h-full object-cover" alt={`doc-${idx}`} />
                     <button 
-                      onClick={(e) => { e.stopPropagation(); setImage(null); }}
-                      className="w-14 h-14 lg:w-20 lg:h-20 bg-rose-500 text-white rounded-full hover:scale-110 active:scale-95 transition-all shadow-2xl flex items-center justify-center"
+                      onClick={(e) => { e.stopPropagation(); removeImage(idx); }} 
+                      className="absolute top-1 right-1 bg-rose-600 text-white p-1 rounded-full shadow-lg opacity-0 group-hover/img:opacity-100 transition-opacity"
                     >
-                      <X className="w-6 h-6 lg:w-10 lg:h-10" />
+                      <Trash className="w-3 h-3" />
                     </button>
                   </div>
-                </>
-              ) : (
-                <div className="text-center space-y-4 lg:space-y-8">
-                  <div className="w-16 h-16 lg:w-32 lg:h-32 bg-blue-50 text-blue-600 rounded-2xl lg:rounded-[3rem] flex items-center justify-center mx-auto group-hover:scale-110 group-hover:rotate-12 transition-all duration-700 shadow-xl shadow-blue-100/50">
-                    <Camera className="w-8 h-8 lg:w-16 lg:h-16" />
-                  </div>
-                  <div className="space-y-1 lg:space-y-3">
-                    <p className="font-black text-slate-900 text-lg lg:text-2xl tracking-tight">اضغط للرفع أو السحب</p>
-                    <p className="text-[8px] lg:text-sm text-slate-400 font-black uppercase tracking-[0.2em]">PNG, JPG حتى 10MB</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="glass-effect p-5 lg:p-10 rounded-2xl lg:rounded-[3rem] w-full max-w-[240px] lg:max-w-sm border border-blue-100/50 shadow-xl relative z-10">
-              <div className="flex gap-3 lg:gap-6">
-                <div className="w-10 h-10 lg:w-14 lg:h-14 bg-blue-600 rounded-xl lg:rounded-2xl flex items-center justify-center flex-shrink-0 shadow-2xl shadow-blue-200">
-                  <Activity className="w-5 h-5 lg:w-8 lg:h-8 text-white" />
-                </div>
-                <p className="text-xs lg:text-base text-blue-900 leading-relaxed font-bold">
-                  يتم تحليل الصور باستخدام تقنية <span className="text-blue-600 font-black">Vision</span> المتقدمة للتعرف على العلامات السريرية في التقارير والأشعة.
-                </p>
+                ))}
               </div>
-            </div>
+            )}
+          </div>
+
+          {/* Submit Action */}
+          <div className="pt-2">
+            <button 
+              disabled={isAnalyzing || !name}
+              onClick={handleSubmit}
+              className="w-full bg-[#0F172A] text-white py-3.5 rounded-xl font-black text-sm shadow-xl shadow-slate-900/20 hover:bg-blue-600 transition-all flex items-center justify-center gap-2.5 active:scale-[0.98] group"
+            >
+              <Sparkles className="w-4.5 h-4.5 text-blue-400 group-hover:rotate-12 transition-transform" />
+              بدء التحليل السريري الفوري
+            </button>
+            <p className="text-center text-[7px] text-slate-400 font-bold uppercase tracking-widest mt-3">يتم معالجة البيانات وفقاً لمعايير الخصوصية الطبية العالمية</p>
           </div>
         </div>
       </div>
-
-      {/* Analysis Progress Overlay */}
-      <AnimatePresence>
-        {isAnalyzing && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-white/80 backdrop-blur-md flex items-center justify-center"
-          >
-            <div className="text-center space-y-4 lg:space-y-8">
-              <div className="relative">
-                <div className="w-24 h-24 lg:w-32 lg:h-32 border-4 border-blue-100 rounded-full mx-auto" />
-                <div className="w-24 h-24 lg:w-32 lg:h-32 border-4 border-blue-600 rounded-full border-t-transparent animate-spin absolute inset-0 mx-auto" />
-                <Activity className="w-8 h-8 lg:w-12 lg:h-12 text-blue-600 absolute inset-0 m-auto animate-pulse" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-xl lg:text-3xl font-black text-gray-900">جاري معالجة البيانات...</h2>
-                <p className="text-sm lg:text-lg text-gray-500">يقوم الحكيم بتحليل الأعراض ومقارنتها بالقواعد الطبية</p>
-              </div>
-              <div className="flex gap-2 justify-center">
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };
