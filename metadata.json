@@ -1,8 +1,0 @@
-{
-  "name": "الحكيم الذكي Pro",
-  "description": "نظام طبي متقدم مدعوم بالذكاء الاصطناعي للتشخيص والمتابعة الطبية",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ]
-}
