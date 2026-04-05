@@ -171,9 +171,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, sett
         </header>
 
         {!isOnline && (
-          <div className="bg-rose-500 text-white text-[10px] lg:text-xs py-1.5 lg:py-2 text-center font-bold sticky top-[56px] lg:top-[64px] z-[85] flex items-center justify-center gap-2 shadow-md animate-in slide-in-from-top-2">
-            <Zap className="w-3 h-3 lg:w-4 lg:h-4 opacity-80" />
-            <span>تنبيه: أنت تعمل الآن في وضع عدم الاتصال (Offline). بعض الميزات السحابية قد لا تتوفر.</span>
+          <div className="bg-rose-600 text-white text-[9px] py-0.5 text-center font-bold sticky top-[56px] z-[85]">
+            تنبيه: أنت تعمل الآن في وضع الأوفلاين
           </div>
         )}
 
